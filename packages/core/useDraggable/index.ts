@@ -97,6 +97,13 @@ export interface UseDraggableOptions {
    * @default false
    */
   disabled?: MaybeRefOrGetter<boolean>
+
+  /**
+   * Use absolute positioning relative to the parent container.
+   *
+   * @default false
+   */
+  useAbsolutePosition?: MaybeRefOrGetter<boolean>
 }
 
 /**
@@ -123,6 +130,7 @@ export function useDraggable(
     draggingElement = defaultWindow,
     containerElement,
     handle: draggingHandle = target,
+    absolutePositioning = false,
   } = options
 
   const position = ref<Position>(
@@ -175,13 +183,18 @@ export function useDraggable(
     let { x, y } = position.value
     if (axis === 'x' || axis === 'both') {
       x = e.clientX - pressedDelta.value.x
-      if (container)
+      if (container && !toValue(absolutePositioning))
         x = Math.min(Math.max(0, x), container.scrollWidth - targetRect!.width)
     }
     if (axis === 'y' || axis === 'both') {
       y = e.clientY - pressedDelta.value.y
-      if (container)
+      if (container && !toValue(absolutePositioning))
         y = Math.min(Math.max(0, y), container.scrollHeight - targetRect!.height)
+    }
+    if (toValue(absolutePositioning) && container) {
+      const containerRect = container.getBoundingClientRect()
+      x += window.pageXOffset - containerRect.left
+      y += window.pageYOffset - containerRect.top
     }
     position.value = {
       x,
@@ -211,9 +224,10 @@ export function useDraggable(
     ...toRefs(position),
     position,
     isDragging: computed(() => !!pressedDelta.value),
-    style: computed(
-      () => `left:${position.value.x}px;top:${position.value.y}px;`,
-    ),
+    style: computed(() => {
+      const pos = `left:${position.value.x}px;top:${position.value.y}px;`
+      return toValue(absolutePositioning) ? `position:absolute;${pos}` : pos
+    }),
   }
 }
 
